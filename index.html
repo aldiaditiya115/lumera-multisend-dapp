@@ -412,44 +412,98 @@
                     return;
                 }
 
-                // Add chain to Keplr
-                try {
-                    await window.keplr.experimentalSuggestChain(lumeraChainInfo);
-                } catch (error) {
-                    console.log('Chain already exists or user rejected');
-                }
+                showStatus('Connecting to wallet...', 'loading');
 
-                // Enable chain
-                await window.keplr.enable(CHAIN_ID);
+                // First try to enable the chain (if already exists)
+                try {
+                    await window.keplr.enable(CHAIN_ID);
+                } catch (error) {
+                    // Chain doesn't exist, suggest it
+                    console.log('Chain not found, suggesting chain...');
+                    try {
+                        await window.keplr.experimentalSuggestChain(lumeraChainInfo);
+                        await window.keplr.enable(CHAIN_ID);
+                    } catch (chainError) {
+                        console.error('Failed to add chain:', chainError);
+                        throw new Error('Failed to add Lumera chain to Keplr. Please try adding manually.');
+                    }
+                }
 
                 // Get offline signer
                 const offlineSigner = window.keplr.getOfflineSigner(CHAIN_ID);
                 const accounts = await offlineSigner.getAccounts();
                 
+                if (!accounts || accounts.length === 0) {
+                    throw new Error('No accounts found in Keplr');
+                }
+                
                 address = accounts[0].address;
                 wallet = offlineSigner;
 
+                showStatus('Fetching balance...', 'loading');
                 await updateBalance();
                 updateUI();
+                clearStatus();
+                
             } catch (error) {
                 console.error('Failed to connect wallet:', error);
-                showStatus('Failed to connect wallet: ' + error.message, 'error');
+                showStatus('❌ Connection failed: ' + error.message, 'error');
             }
         }
 
         async function updateBalance() {
             try {
-                const response = await axios.get(
-                    `${RPC_ENDPOINT}abci_query?path="/bank/balances/${address}"`
-                );
-                
-                if (response.data.result.response.value) {
-                    const balances = JSON.parse(atob(response.data.result.response.value));
-                    const lumeBalance = balances.balances.find(b => b.denom === DENOM);
-                    balance = lumeBalance ? parseInt(lumeBalance.amount) / Math.pow(10, DECIMALS) : 0;
-                } else {
+                if (!address) {
                     balance = 0;
+                    return;
                 }
+
+                // Try multiple methods to get balance
+                let balanceFound = false;
+
+                // Method 1: Try bank balances endpoint
+                try {
+                    const response = await axios.get(
+                        `https://lumera-testnet-api.linknode.org/cosmos/bank/v1beta1/balances/${address}`
+                    );
+                    
+                    if (response.data && response.data.balances) {
+                        const lumeBalance = response.data.balances.find(b => b.denom === DENOM);
+                        if (lumeBalance) {
+                            balance = parseInt(lumeBalance.amount) / Math.pow(10, DECIMALS);
+                            balanceFound = true;
+                        }
+                    }
+                } catch (error) {
+                    console.log('API method failed, trying RPC...');
+                }
+
+                // Method 2: Try RPC query if API failed
+                if (!balanceFound) {
+                    try {
+                        const response = await axios.get(
+                            `${RPC_ENDPOINT}abci_query?path="/bank/balances/${address}"`
+                        );
+                        
+                        if (response.data.result.response.value) {
+                            const balances = JSON.parse(atob(response.data.result.response.value));
+                            const lumeBalance = balances.balances.find(b => b.denom === DENOM);
+                            if (lumeBalance) {
+                                balance = parseInt(lumeBalance.amount) / Math.pow(10, DECIMALS);
+                                balanceFound = true;
+                            }
+                        }
+                    } catch (error) {
+                        console.log('RPC method also failed:', error);
+                    }
+                }
+
+                // If no balance found, set to 0
+                if (!balanceFound) {
+                    balance = 0;
+                    console.log('No balance found, setting to 0');
+                }
+
             } catch (error) {
                 console.error('Failed to fetch balance:', error);
                 balance = 0;
