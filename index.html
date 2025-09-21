@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumera Multi-Send dApp</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.0/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+            color: white;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 0;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: #0f0f23;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #00ff88, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #a0a0b0;
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: rgba(26, 26, 62, 0.6);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 255, 136, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .wallet-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .wallet-info {
+            flex: 1;
+        }
+
+        .wallet-address {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #00ff88;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .balance {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #0f0f23;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-disconnect {
+            background: linear-gradient(135deg, #ff4757, #ff3742);
+            color: white;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #00ff88;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(0, 255, 136, 0.2);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+
+        .form-control::placeholder {
+            color: #666;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .amount-display {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .amount-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .amount-row:last-child {
+            margin-bottom: 0;
+            font-weight: bold;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .status.error {
+            background: rgba(255, 71, 87, 0.1);
+            color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+
+        .status.loading {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .tx-hash {
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .faucet-links {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .faucet-links h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        .faucet-link {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 8px 16px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            color: #00ff88;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .faucet-link:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .wallet-section {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">L</div>
+            <h1>Lumera Multi-Send</h1>
+            <p class="subtitle">Send LUME tokens to multiple recipients at once</p>
+        </div>
+
+        <div class="card">
+            <div class="wallet-section" id="walletSection">
+                <div class="wallet-info">
+                    <div id="walletStatus">
+                        <p>Connect your Keplr wallet to get started</p>
+                    </div>
+                </div>
+                <button class="btn" id="connectBtn" onclick="connectWallet()">
+                    Connect Keplr
+                </button>
+            </div>
+        </div>
+
+        <div class="card" id="multisendCard" style="display: none;">
+            <h2 style="margin-bottom: 25px; color: #00ff88;">Multi-Send Transaction</h2>
+            
+            <div class="form-group">
+                <label for="recipients">Recipient Addresses (comma-separated)</label>
+                <textarea 
+                    class="form-control" 
+                    id="recipients" 
+                    placeholder="lumera1abc..., lumera1def..., lumera1ghi..."
+                    oninput="calculateTotal()"
+                ></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount per recipient (LUME)</label>
+                <input 
+                    type="number" 
+                    class="form-control" 
+                    id="amount" 
+                    placeholder="0.000001"
+                    step="0.000001"
+                    min="0"
+                    oninput="calculateTotal()"
+                >
+            </div>
+
+            <div class="amount-display" id="amountDisplay" style="display: none;">
+                <div class="amount-row">
+                    <span>Recipients:</span>
+                    <span id="recipientCount">0</span>
+                </div>
+                <div class="amount-row">
+                    <span>Amount per recipient:</span>
+                    <span id="perRecipient">0 LUME</span>
+                </div>
+                <div class="amount-row">
+                    <span>Total Amount:</span>
+                    <span id="totalAmount">0 LUME</span>
+                </div>
+            </div>
+
+            <button class="btn" id="sendBtn" onclick="sendTokens()" style="width: 100%; margin-top: 20px;" disabled>
+                Send Tokens
+            </button>
+
+            <div id="txStatus"></div>
+        </div>
+
+        <div class="card">
+            <div class="faucet-links">
+                <h3>Need Test Tokens?</h3>
+                <a href="https://faucet-lumera.winnode.xyz/" class="faucet-link" target="_blank">Winnode Faucet</a>
+                <a href="https://faucet.astrostake.xyz/" class="faucet-link" target="_blank">Astrostake Faucet</a>
+                <a href="https://lumera-faucet-maouam.nodelab.my.id/" class="faucet-link" target="_blank">Nodelab Faucet</a>
+                <a href="https://lumera-faucet.vercel.app/" class="faucet-link" target="_blank">Vercel Faucet</a>
+                <a href="https://wh-faucet.netlify.app/" class="faucet-link" target="_blank">WH Faucet</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Lumera Testnet Configuration
+        const CHAIN_ID = 'lumera-testnet-2';
+        const RPC_ENDPOINT = 'https://lumera-testnet-rpc.linknode.org/';
+        const ADDRESS_PREFIX = 'lumera';
+        const DENOM = 'ulume';
+        const DECIMALS = 6;
+
+        let wallet = null;
+        let address = null;
+        let balance = 0;
+
+        // Keplr Chain Configuration
+        const lumeraChainInfo = {
+            chainId: CHAIN_ID,
+            chainName: 'Lumera Testnet',
+            rpc: RPC_ENDPOINT,
+            rest: 'https://lumera-testnet-api.linknode.org/',
+            bip44: {
+                coinType: 118,
+            },
+            bech32Config: {
+                bech32PrefixAccAddr: ADDRESS_PREFIX,
+                bech32PrefixAccPub: ADDRESS_PREFIX + 'pub',
+                bech32PrefixValAddr: ADDRESS_PREFIX + 'valoper',
+                bech32PrefixValPub: ADDRESS_PREFIX + 'valoperpub',
+                bech32PrefixConsAddr: ADDRESS_PREFIX + 'valcons',
+                bech32PrefixConsPub: ADDRESS_PREFIX + 'valconspub',
+            },
+            currencies: [
+                {
+                    coinDenom: 'LUME',
+                    coinMinimalDenom: DENOM,
+                    coinDecimals: DECIMALS,
+                },
+            ],
+            feeCurrencies: [
+                {
+                    coinDenom: 'LUME',
+                    coinMinimalDenom: DENOM,
+                    coinDecimals: DECIMALS,
+                    gasPriceStep: {
+                        low: 0.01,
+                        average: 0.025,
+                        high: 0.03,
+                    },
+                },
+            ],
+            stakeCurrency: {
+                coinDenom: 'LUME',
+                coinMinimalDenom: DENOM,
+                coinDecimals: DECIMALS,
+            },
+        };
+
+        async function connectWallet() {
+            try {
+                if (!window.keplr) {
+                    alert('Please install Keplr extension');
+                    return;
+                }
+
+                // Add chain to Keplr
+                try {
+                    await window.keplr.experimentalSuggestChain(lumeraChainInfo);
+                } catch (error) {
+                    console.log('Chain already exists or user rejected');
+                }
+
+                // Enable chain
+                await window.keplr.enable(CHAIN_ID);
+
+                // Get offline signer
+                const offlineSigner = window.keplr.getOfflineSigner(CHAIN_ID);
+                const accounts = await offlineSigner.getAccounts();
+                
+                address = accounts[0].address;
+                wallet = offlineSigner;
+
+                await updateBalance();
+                updateUI();
+            } catch (error) {
+                console.error('Failed to connect wallet:', error);
+                showStatus('Failed to connect wallet: ' + error.message, 'error');
+            }
+        }
+
+        async function updateBalance() {
+            try {
+                const response = await axios.get(
+                    `${RPC_ENDPOINT}abci_query?path="/bank/balances/${address}"`
+                );
+                
+                if (response.data.result.response.value) {
+                    const balances = JSON.parse(atob(response.data.result.response.value));
+                    const lumeBalance = balances.balances.find(b => b.denom === DENOM);
+                    balance = lumeBalance ? parseInt(lumeBalance.amount) / Math.pow(10, DECIMALS) : 0;
+                } else {
+                    balance = 0;
+                }
+            } catch (error) {
+                console.error('Failed to fetch balance:', error);
+                balance = 0;
+            }
+        }
+
+        function updateUI() {
+            const walletStatus = document.getElementById('walletStatus');
+            const connectBtn = document.getElementById('connectBtn');
+            const multisendCard = document.getElementById('multisendCard');
+
+            if (address) {
+                walletStatus.innerHTML = `
+                    <div class="wallet-address">${address}</div>
+                    <div class="balance">${balance.toFixed(6)} LUME</div>
+                `;
+                connectBtn.textContent = 'Disconnect';
+                connectBtn.className = 'btn btn-disconnect';
+                connectBtn.onclick = disconnectWallet;
+                multisendCard.style.display = 'block';
+            } else {
+                walletStatus.innerHTML = '<p>Connect your Keplr wallet to get started</p>';
+                connectBtn.textContent = 'Connect Keplr';
+                connectBtn.className = 'btn';
+                connectBtn.onclick = connectWallet;
+                multisendCard.style.display = 'none';
+            }
+        }
+
+        function disconnectWallet() {
+            wallet = null;
+            address = null;
+            balance = 0;
+            updateUI();
+            clearStatus();
+        }
+
+        function calculateTotal() {
+            const recipients = document.getElementById('recipients').value
+                .split(',')
+                .map(addr => addr.trim())
+                .filter(addr => addr.length > 0);
+            
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const total = recipients.length * amount;
+
+            const amountDisplay = document.getElementById('amountDisplay');
+            const sendBtn = document.getElementById('sendBtn');
+
+            if (recipients.length > 0 && amount > 0) {
+                document.getElementById('recipientCount').textContent = recipients.length;
+                document.getElementById('perRecipient').textContent = `${amount} LUME`;
+                document.getElementById('totalAmount').textContent = `${total.toFixed(6)} LUME`;
+                amountDisplay.style.display = 'block';
+
+                // Enable send button if balance is sufficient
+                sendBtn.disabled = total > balance || !address;
+                if (total > balance) {
+                    sendBtn.textContent = 'Insufficient Balance';
+                } else {
+                    sendBtn.textContent = 'Send Tokens';
+                }
+            } else {
+                amountDisplay.style.display = 'none';
+                sendBtn.disabled = true;
+                sendBtn.textContent = 'Send Tokens';
+            }
+        }
+
+        async function sendTokens() {
+            try {
+                showStatus('Preparing transaction...', 'loading');
+
+                const recipients = document.getElementById('recipients').value
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr.length > 0);
+                
+                const amount = parseFloat(document.getElementById('amount').value);
+                const amountInMicroLume = Math.floor(amount * Math.pow(10, DECIMALS));
+
+                if (recipients.length === 0 || amount <= 0) {
+                    throw new Error('Please enter valid recipients and amount');
+                }
+
+                // Validate addresses
+                for (const recipient of recipients) {
+                    if (!recipient.startsWith(ADDRESS_PREFIX)) {
+                        throw new Error(`Invalid address: ${recipient}`);
+                    }
+                }
+
+                // Create messages for multi-send
+                const messages = recipients.map(recipient => ({
+                    typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+                    value: {
+                        fromAddress: address,
+                        toAddress: recipient,
+                        amount: [{
+                            denom: DENOM,
+                            amount: amountInMicroLume.toString()
+                        }]
+                    }
+                }));
+
+                // Get account info
+                const accountResponse = await axios.get(
+                    `${RPC_ENDPOINT}abci_query?path="/auth/accounts/${address}"`
+                );
+
+                let accountNumber = '0';
+                let sequence = '0';
+
+                if (accountResponse.data.result.response.value) {
+                    const accountData = JSON.parse(atob(accountResponse.data.result.response.value));
+                    accountNumber = accountData.account.account_number || '0';
+                    sequence = accountData.account.sequence || '0';
+                }
+
+                showStatus('Please approve the transaction in Keplr...', 'loading');
+
+                // Sign and broadcast transaction
+                const fee = {
+                    amount: [{
+                        denom: DENOM,
+                        amount: '5000' // 0.005 LUME fee
+                    }],
+                    gas: '200000'
+                };
+
+                const txBytes = await wallet.signDirect(address, {
+                    bodyBytes: createTxBodyBytes(messages),
+                    authInfoBytes: createAuthInfoBytes(fee, parseInt(sequence)),
+                    chainId: CHAIN_ID,
+                    accountNumber: parseInt(accountNumber)
+                });
+
+                // Broadcast transaction
+                const broadcastResponse = await axios.post(
+                    `${RPC_ENDPOINT}broadcast_tx_sync`,
+                    {
+                        tx: btoa(String.fromCharCode(...txBytes.signed))
+                    }
+                );
+
+                if (broadcastResponse.data.result.code === 0) {
+                    showStatus(
+                        `✅ Transaction successful!<div class="tx-hash">TX Hash: ${broadcastResponse.data.result.hash}</div>`,
+                        'success'
+                    );
+                    
+                    // Update balance after a delay
+                    setTimeout(async () => {
+                        await updateBalance();
+                        updateUI();
+                    }, 3000);
+                    
+                    // Clear form
+                    document.getElementById('recipients').value = '';
+                    document.getElementById('amount').value = '';
+                    calculateTotal();
+                } else {
+                    throw new Error(broadcastResponse.data.result.log || 'Transaction failed');
+                }
+
+            } catch (error) {
+                console.error('Send failed:', error);
+                showStatus('❌ Transaction failed: ' + error.message, 'error');
+            }
+        }
+
+        function createTxBodyBytes(messages) {
+            // Simplified transaction body creation
+            // In a real implementation, you'd use proper protobuf encoding
+            const txBody = {
+                messages: messages,
+                memo: 'Lumera Multi-Send dApp',
+                timeoutHeight: '0'
+            };
+            return new TextEncoder().encode(JSON.stringify(txBody));
+        }
+
+        function createAuthInfoBytes(fee, sequence) {
+            // Simplified auth info creation
+            const authInfo = {
+                signerInfos: [{
+                    publicKey: null,
+                    modeInfo: { single: { mode: 'SIGN_MODE_DIRECT' } },
+                    sequence: sequence.toString()
+                }],
+                fee: fee
+            };
+            return new TextEncoder().encode(JSON.stringify(authInfo));
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('txStatus');
+            statusDiv.innerHTML = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        function clearStatus() {
+            const statusDiv = document.getElementById('txStatus');
+            statusDiv.style.display = 'none';
+        }
+
+        // Initialize
+        updateUI();
+    </script>
+</body>
+</html>
